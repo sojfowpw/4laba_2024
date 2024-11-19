@@ -78,6 +78,29 @@ class Barrier { // реализация Barrier
     // счётчик поколоений для уведомления потоков, что барьер потоков достигнут
 };
 
+class Monitor { // реализация monitor
+    public:
+    Monitor() : isReady(false) {}
+    void locker() { // захват 
+        unique_lock<mutex> lock(mtx); // защита доступа к переменным
+        while(isReady) { // поток блокируется если, монитор захвачен
+            cv.wait(lock); 
+        }
+        isReady = true;
+    }
+
+    void unlocker() { // освобождение
+        lock_guard<mutex> lock(mtx);
+        isReady = false; // монитор освобождён
+        cv.notify_one(); // уведомляет один из ожидающих потоков
+    }
+
+    private:
+    mutex mtx;
+    condition_variable cv;
+    bool isReady;
+};
+
 void randomSymbols(char& symbol) { // генерация рандомных символов ASCII
     random_device rd;
     mt19937 gen(rd());
@@ -125,6 +148,26 @@ void threadSpinLock(char& symbol, atomic_flag& spinLock, vector<char>& allSymbol
         while (spinLock.test_and_set(memory_order_acquire)) {} // устанавливаем флаг, поток входит в режим ожидания
         allSymbols.push_back(symbol);
         spinLock.clear(memory_order_release); // сбрасываем флаг, освобождая спинлок
+    }
+}
+
+void threadSpinWait(char& symbol, atomic_flag& spinLock, vector<char>& allSymbols) { // spinWait
+    for (int i = 0; i < 1000; i++) {
+        randomSymbols(symbol);
+        while (spinLock.test_and_set(memory_order_acquire)) { // если флаг установлен
+            this_thread::yield(); // передаём управление другим потокам, готовым к выполнению
+        }
+        allSymbols.push_back(symbol);
+        spinLock.clear(memory_order_release);
+    }
+}
+
+void threadMonitor(char& symbol, Monitor& monitor, vector<char>& allSymbols) { // monitor
+    for (int i = 0; i < 1000; i++) {
+        randomSymbols(symbol);
+        monitor.locker(); // захват 
+        allSymbols.push_back(symbol);
+        monitor.unlocker(); // освобождение
     }
 }
 
@@ -207,5 +250,32 @@ int main() {
     cout << "SpinLock time: " << elapsed.count() << " seconds\n";
     threads.clear();
     allSymbols.clear();
+
+    // spinWait
+    start = chrono::high_resolution_clock::now();
+    for (int i = 0; i < 4; i++) {
+        threads.emplace_back(threadSpinWait, ref(symbol), ref(spinLock), ref(allSymbols));
+    }
+    for (auto& t : threads) {
+        t.join();
+    }
+    end = chrono::high_resolution_clock::now();
+    elapsed = end - start;
+    cout << "SpinWait time: " << elapsed.count() << " seconds\n";
+    threads.clear();
+    allSymbols.clear();
+
+    // monitor
+    Monitor monitor;
+    start = chrono::high_resolution_clock::now();
+    for (int i = 0; i < 4; i++) {
+        threads.emplace_back(threadMonitor, ref(symbol), ref(monitor), ref(allSymbols));
+    }
+    for (auto& t : threads) {
+        t.join();
+    }
+    end = chrono::high_resolution_clock::now();
+    elapsed = end - start;
+    cout << "Monitor time: " << elapsed.count() << " seconds\n";
     return 0;
 }
