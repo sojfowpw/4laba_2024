@@ -33,10 +33,10 @@ vector<Staffer> generateWorker() { // генерация работников
     vector<Staffer> workers; // заполнение вектора работников
     for (int i = 0; i < 10; i++) {
         Staffer staffer;
-        staffer.name = names[i];
-        staffer.post = posts[i];
+        staffer.name = names[i % names.size()];
+        staffer.post = posts[i % posts.size()];
         staffer.office = rd() % (3) + 1;
-        staffer.salary = salarys[i];
+        staffer.salary = salarys[i % salarys.size()];
         workers.push_back(staffer);
     }
     return workers;
@@ -112,7 +112,7 @@ int main() {
         threads.emplace_back(calculateSum, ref(workers), i, sum, count, ref(sums), ref(mtx));
     }
     for (auto& t : threads) {
-        t.join();
+        t.detach();
     }
     threads.clear();
     cout << endl;
@@ -125,7 +125,7 @@ int main() {
         threads.emplace_back(printWorkers, ref(workers), i, ref(sums), ref(mtx));
     }
     for (auto& t : threads) {
-        t.join();
+        t.detach();
     }
     end = chrono::high_resolution_clock::now();
     elapsed = end - start;
