@@ -16,11 +16,11 @@ class Semaphore { // реализация semaphore
         sem_init(&sem, 0, initialCount);
     }
     void acquire() { // захватывает семафор
-        sem_wait(&sem);
+        sem_wait(&sem); // sem--
     }
 
     void release() { // освобождает семафор
-        sem_post(&sem);
+        sem_post(&sem); // sem++
     }
 
     private:
@@ -84,7 +84,7 @@ class Monitor { // реализация monitor
     void locker() { // захват 
         unique_lock<mutex> lock(mtx); // защита доступа к переменным
         while(isReady) { // поток блокируется если, монитор захвачен
-            cv.wait(lock); 
+            cv.wait(lock); // блокировка текущего потока и освобождает mutex, чтобы другие потоки могли получить доступ
         }
         isReady = true;
     }
@@ -109,7 +109,7 @@ void randomSymbols(char& symbol) { // генерация рандомных си
 }
 
 void threadMutex(char& symbol, mutex& mtx, vector<char>& allSymbols) { // mutex
-    for (int i = 0; i < 1000; i++) { 
+    for (int i = 0; i < 10000; i++) { 
         randomSymbols(symbol);
         lock_guard<mutex> lock(mtx); // только один поток может получить доступ к вектору
         allSymbols.push_back(symbol);
@@ -117,7 +117,7 @@ void threadMutex(char& symbol, mutex& mtx, vector<char>& allSymbols) { // mutex
 }
 
 void threadSemaphore(char& symbol, Semaphore& sem, vector<char>& allSymbols) { // semaphore
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 10000; i++) {
         randomSymbols(symbol);
         sem.acquire();
         allSymbols.push_back(symbol);
@@ -126,7 +126,7 @@ void threadSemaphore(char& symbol, Semaphore& sem, vector<char>& allSymbols) { /
 }
 
 void threadSemaphoreSlim(char& symbol, SemaphoreSlim& semSlim, vector<char>& allSymbols) { // semaphoreSlim
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 10000; i++) {
         randomSymbols(symbol);
         semSlim.acquire(); // захват семафора и блокировка потока
         allSymbols.push_back(symbol);
@@ -135,7 +135,7 @@ void threadSemaphoreSlim(char& symbol, SemaphoreSlim& semSlim, vector<char>& all
 }
 
 void threadBarrier(char& symbol, Barrier& barrier, vector<char>& allSymbols) { // barrier
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 10000; i++) {
         randomSymbols(symbol);
         barrier.wait(); // ожидаем, пока все потоки не достигнут барьера
         allSymbols.push_back(symbol);
@@ -143,7 +143,7 @@ void threadBarrier(char& symbol, Barrier& barrier, vector<char>& allSymbols) { /
 }
 
 void threadSpinLock(char& symbol, atomic_flag& spinLock, vector<char>& allSymbols) { // spinLock
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 10000; i++) {
         randomSymbols(symbol);
         while (spinLock.test_and_set(memory_order_acquire)) {} // устанавливаем флаг, поток входит в режим ожидания
         allSymbols.push_back(symbol);
@@ -152,7 +152,7 @@ void threadSpinLock(char& symbol, atomic_flag& spinLock, vector<char>& allSymbol
 }
 
 void threadSpinWait(char& symbol, atomic_flag& spinLock, vector<char>& allSymbols) { // spinWait
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 10000; i++) {
         randomSymbols(symbol);
         while (spinLock.test_and_set(memory_order_acquire)) { // если флаг установлен
             this_thread::yield(); // передаём управление другим потокам, готовым к выполнению
@@ -163,7 +163,7 @@ void threadSpinWait(char& symbol, atomic_flag& spinLock, vector<char>& allSymbol
 }
 
 void threadMonitor(char& symbol, Monitor& monitor, vector<char>& allSymbols) { // monitor
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 10000; i++) {
         randomSymbols(symbol);
         monitor.locker(); // захват 
         allSymbols.push_back(symbol);
